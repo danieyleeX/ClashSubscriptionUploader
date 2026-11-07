@@ -17,7 +17,7 @@ public sealed class MainForm : Form
     private readonly Button _fetch = new() { Text = "获取OpenRung订阅" };
     private readonly Button _fetchZhuhai = new() { Text = "获取Zhuhai订阅" };
     private readonly Button _upload = new() { Text = "上传订阅" };
-    private readonly NumericUpDown _limit = new() { Minimum = 1, Maximum = 50, Value = 10, Width = 70 };
+    private readonly NumericUpDown _limit = new() { Minimum = 1, Maximum = 50, Value = 20, Width = 70 };
     private readonly RichTextBox _preview = new() { ReadOnly = true, DetectUrls = false, ScrollBars = RichTextBoxScrollBars.Both, WordWrap = true, Font = new Font("Consolas", 10F) };
     private readonly Button _clearLog = new() { Text = "清空" };
     private readonly Button _ftpConnect = new() { Text = "连接 FTP" };
@@ -515,8 +515,8 @@ public sealed class MainForm : Form
             _ftps.Checked = s.UseFtps;
             if (s.Limit > 0)
             {
-                // 5 was the previous default; migrate it to the new default of 10.
-                var savedLimit = s.Limit == 5 ? 10 : s.Limit;
+                // Migrate the previous default of 10 to the new default of 20.
+                var savedLimit = s.Limit == 10 ? 20 : s.Limit;
                 _limit.Value = Math.Clamp(savedLimit, (int)_limit.Minimum, (int)_limit.Maximum);
             }
             if (!string.IsNullOrWhiteSpace(s.ClientId)) _clientId = s.ClientId;
