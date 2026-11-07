@@ -175,7 +175,19 @@ internal static class OpenRungBroker
         }
         sb.Append("\nproxy-groups:\n  - name: \"OpenRung\"\n    type: select\n    proxies:\n");
         foreach (var p in proxies) sb.Append("      - ").Append(Q(p.Name)).Append('\n');
-        return sb.Append("\nrules:\n  - MATCH,OpenRung\n").ToString();
+        sb.Append("\nrules:\n")
+            .Append("  # OpenRung-style LAN bypass: private/local addresses go direct.\n")
+            .Append("  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR6,::1/128,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR6,fc00::/7,DIRECT,no-resolve\n")
+            .Append("  - IP-CIDR6,fe80::/10,DIRECT,no-resolve\n")
+            .Append("  - MATCH,OpenRung\n");
+        return sb.ToString();
     }
 
     private static string Q(string value) => JsonSerializer.Serialize(value);
