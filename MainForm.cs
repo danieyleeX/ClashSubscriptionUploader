@@ -70,9 +70,9 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Orientation = Orientation.Vertical,
             FixedPanel = FixedPanel.Panel2,
+            Size = new Size(1290, 780),
             Panel1MinSize = 720,
-            Panel2MinSize = 360,
-            Size = new Size(1290, 780)
+            Panel2MinSize = 360
         };
         split.SplitterDistance = 865;
         Controls.Add(split);
