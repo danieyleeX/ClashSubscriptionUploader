@@ -76,11 +76,19 @@ internal static class OpenRungBroker
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or JsonException or CryptographicException)
             {
-                errors.Add($"{new Uri(brokerBase).Host}: {ex.Message}");
+                errors.Add($"{new Uri(brokerBase).Host}: {DescribeException(ex)}");
             }
         }
 
         throw new HttpRequestException("所有 OpenRung Broker 前端都未返回有效的已签名节点目录。 " + string.Join("；", errors));
+    }
+
+    private static string DescribeException(Exception exception)
+    {
+        var details = new List<string>();
+        for (var current = exception; current is not null && details.Count < 5; current = current.InnerException!)
+            details.Add($"{current.GetType().Name}: {current.Message}");
+        return string.Join(" -> ", details);
     }
 
     private static bool VerifySignedBody(string header, byte[] body, int requestedLimit, out RelayListDto list, out string error)
@@ -186,6 +194,8 @@ internal static class OpenRungBroker
             .Append("  - IP-CIDR6,::1/128,DIRECT,no-resolve\n")
             .Append("  - IP-CIDR6,fc00::/7,DIRECT,no-resolve\n")
             .Append("  - IP-CIDR6,fe80::/10,DIRECT,no-resolve\n")
+            .Append("  - GEOSITE,CN,DIRECT\n")
+            .Append("  - GEOIP,CN,DIRECT,no-resolve\n")
             .Append("  - MATCH,OpenRung\n");
         return sb.ToString();
     }
