@@ -12,10 +12,10 @@ dotnet build .\ClashSubscriptionUploader.csproj
 
 ## Behavior
 
-- The “获取OpenRung订阅” button requests the official `GET /api/v1/relays` candidate list and validates its Ed25519 signature, channel, requested limit, and freshness before conversion. Candidate count defaults to 10 and can be changed up to 50.
+- The “获取OpenRung订阅” button requests the official `GET /api/v1/relays` candidate list and validates its Ed25519 signature, channel, requested limit, and freshness before conversion. Candidate count defaults to 20 and can be changed up to 50.
 - Only direct `vless-reality-vision` entries with a live descriptor are converted. The generic Clash/Mihomo output does not implement OpenRung's NAT-punch or WSS/CDN fallback, so those transport paths are not exported as if they were ordinary VLESS nodes.
 - The result is previewed and saved to `Documents\ClashSubscriptionUploader\clash.yaml`. “上传订阅” uploads the currently previewed subscription separately.
-- Generated rules send private/local IPv4 and IPv6 ranges, China GeoSite domains, and China GeoIP addresses directly; all remaining traffic uses the OpenRung proxy group.
+- Generated rules use selectable `选择节点`, `所有节点`, `局域网`, and `国内服务` groups. The LAN and China groups let you choose DIRECT, all nodes, or `选择节点`; private/local address rules use `局域网`, China GeoSite/GeoIP rules use `国内服务`, and remaining traffic uses `选择节点`.
 - OpenRung's exact bundled country `.srs` files are not returned by its Broker API and are not used here; this config uses Mihomo's `GEOSITE,CN` and `GEOIP,CN` rules instead.
 - FTP host, port, account, password, upload path, and FTPS setting are configured in the window. The password is saved encrypted with Windows DPAPI for the current Windows user after the app closes; enter it once on first run.
 - Host, port, account, upload path, and FTPS preference are saved in the current Windows user's Local AppData. On exit, the password is encrypted with Windows DPAPI for the current user and saved there.
