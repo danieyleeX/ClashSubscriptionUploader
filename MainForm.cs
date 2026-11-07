@@ -16,7 +16,7 @@ public sealed class MainForm : Form
     private readonly TextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
     private readonly Button _fetch = new() { Text = "获取 OpenRung 节点并预览 YAML" };
     private readonly Button _upload = new() { Text = "上传当前 YAML" };
-    private readonly NumericUpDown _limit = new() { Minimum = 1, Maximum = 50, Value = 5, Width = 70 };
+    private readonly NumericUpDown _limit = new() { Minimum = 1, Maximum = 50, Value = 10, Width = 70 };
     private readonly TextBox _preview = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, WordWrap = false };
     private string? _currentYaml;
     private string _clientId = Guid.NewGuid().ToString();
@@ -141,7 +141,12 @@ public sealed class MainForm : Form
             _user.Text = s.User;
             _remote.Text = string.IsNullOrWhiteSpace(s.RemotePath) ? "wwwroot/clash.yaml" : s.RemotePath;
             _ftps.Checked = s.UseFtps;
-            if (s.Limit > 0) _limit.Value = Math.Clamp(s.Limit, (int)_limit.Minimum, (int)_limit.Maximum);
+            if (s.Limit > 0)
+            {
+                // 5 was the previous default; migrate it to the new default of 10.
+                var savedLimit = s.Limit == 5 ? 10 : s.Limit;
+                _limit.Value = Math.Clamp(savedLimit, (int)_limit.Minimum, (int)_limit.Maximum);
+            }
             if (!string.IsNullOrWhiteSpace(s.ClientId)) _clientId = s.ClientId;
             if (!string.IsNullOrEmpty(s.ProtectedPassword))
                 _password.Text = Dpapi.Unprotect(Convert.FromBase64String(s.ProtectedPassword));
