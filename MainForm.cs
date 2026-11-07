@@ -11,10 +11,11 @@ public sealed class MainForm : Form
     private readonly NumericUpDown _port = new() { Minimum = 1, Maximum = 65535, Value = 3543 };
     private readonly TextBox _user = new() { Text = "au104745" };
     private readonly TextBox _password = new() { UseSystemPasswordChar = true };
-    private readonly TextBox _remote = new() { Text = "wwwroot/clash.yaml" };
+    private readonly TextBox _remote = new() { Text = "wwwroot/clash.asp" };
     private readonly CheckBox _ftps = new() { Text = "使用显式 FTPS（服务器需支持）", AutoSize = true };
     private readonly TextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
-    private readonly Button _fetch = new() { Text = "获取 OpenRung 节点并预览 YAML" };
+    private readonly Button _fetch = new() { Text = "获取OpenRung订阅" };
+    private readonly Button _fetchZhuhai = new() { Text = "获取Zhuhai订阅" };
     private readonly Button _upload = new() { Text = "上传当前 YAML" };
     private readonly NumericUpDown _limit = new() { Minimum = 1, Maximum = 50, Value = 10, Width = 70 };
     private readonly TextBox _preview = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, WordWrap = false };
@@ -31,6 +32,7 @@ public sealed class MainForm : Form
         BuildLayout();
         LoadSettings();
         _fetch.Click += async (_, _) => await FetchNodesAsync();
+        _fetchZhuhai.Click += async (_, _) => await FetchZhuhaiAsync();
         _upload.Click += async (_, _) => await UploadAsync();
         FormClosing += (_, _) => SaveSettings();
     }
@@ -60,6 +62,7 @@ public sealed class MainForm : Form
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(0, 8, 0, 8) };
         buttons.Controls.Add(_fetch);
+        buttons.Controls.Add(_fetchZhuhai);
         buttons.Controls.Add(new Label { Text = "候选数量", AutoSize = true, Margin = new Padding(12, 8, 4, 0) });
         buttons.Controls.Add(_limit);
         buttons.Controls.Add(_upload);
@@ -85,7 +88,7 @@ public sealed class MainForm : Form
 
     private async Task FetchNodesAsync()
     {
-        _fetch.Enabled = _upload.Enabled = false;
+        SetFetchButtonsEnabled(false);
         try
         {
             var result = await OpenRungBroker.FetchMihomoYamlAsync(_clientId, (int)_limit.Value);
@@ -95,8 +98,50 @@ public sealed class MainForm : Form
             Log($"获取并验证完成：{result.CompatibleCount}/{result.TotalCount} 个候选可转换；Broker 到期时间 {result.NotAfter:yyyy-MM-dd HH:mm:ss} UTC");
         }
         catch (Exception ex) { Log("获取失败：" + ex.Message); }
-        finally { _fetch.Enabled = _upload.Enabled = true; }
+        finally { SetFetchButtonsEnabled(true); }
     }
+
+    private async Task FetchZhuhaiAsync()
+    {
+        SetFetchButtonsEnabled(false);
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            using var response = await http.GetAsync(
+                "https://raw.githubusercontent.com/zhuhaiuk/free-nodes/main/clash_config.yaml",
+                HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            if (response.Content.Headers.ContentLength is > 5_000_000)
+                throw new InvalidDataException("Zhuhai 订阅文件超过 5 MB，已停止获取。");
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var buffer = new MemoryStream();
+            var chunk = new byte[16 * 1024];
+            while (true)
+            {
+                var read = await stream.ReadAsync(chunk);
+                if (read == 0) break;
+                if (buffer.Length + read > 5_000_000)
+                    throw new InvalidDataException("Zhuhai 订阅文件超过 5 MB，已停止获取。");
+                buffer.Write(chunk, 0, read);
+            }
+
+            var yaml = new UTF8Encoding(false, true).GetString(buffer.ToArray());
+            if (!yaml.Contains("proxies:", StringComparison.OrdinalIgnoreCase) ||
+                !yaml.Contains("rules:", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("下载内容不像 Clash YAML 订阅（缺少 proxies 或 rules）。");
+
+            _currentYaml = yaml;
+            _preview.Text = yaml;
+            SaveLocalYaml();
+            Log("已获取 Zhuhai 订阅并载入 YAML 预览；现在可点击“上传当前 YAML”。");
+        }
+        catch (Exception ex) { Log("获取 Zhuhai 订阅失败：" + ex.Message); }
+        finally { SetFetchButtonsEnabled(true); }
+    }
+
+    private void SetFetchButtonsEnabled(bool enabled) =>
+        _fetch.Enabled = _fetchZhuhai.Enabled = _upload.Enabled = enabled;
 
     private void SaveLocalYaml()
     {
@@ -107,11 +152,11 @@ public sealed class MainForm : Form
 
     private async Task UploadAsync()
     {
-        _fetch.Enabled = _upload.Enabled = false;
+        SetFetchButtonsEnabled(false);
         try
         {
             if (string.IsNullOrEmpty(_currentYaml))
-                throw new InvalidOperationException("请先获取 OpenRung 节点并生成 YAML 预览，再上传。");
+                throw new InvalidOperationException("请先获取一个订阅并生成 YAML 预览，再上传。");
             if (string.IsNullOrWhiteSpace(_host.Text) || string.IsNullOrWhiteSpace(_user.Text) || string.IsNullOrWhiteSpace(_password.Text))
                 throw new InvalidOperationException("请填写 FTP 地址、帐号和密码。");
             await File.WriteAllTextAsync(_localFile, _currentYaml!, new UTF8Encoding(false));
@@ -120,7 +165,7 @@ public sealed class MainForm : Form
             Log($"上传成功：/{_remote.Text.Trim()}（同名文件将被覆盖）");
         }
         catch (Exception ex) { Log("上传失败：" + ex.Message); }
-        finally { _fetch.Enabled = _upload.Enabled = true; }
+        finally { SetFetchButtonsEnabled(true); }
     }
 
     private void Log(string message)
@@ -139,7 +184,9 @@ public sealed class MainForm : Form
             _host.Text = s.Host;
             _port.Value = Math.Clamp(s.Port, (int)_port.Minimum, (int)_port.Maximum);
             _user.Text = s.User;
-            _remote.Text = string.IsNullOrWhiteSpace(s.RemotePath) ? "wwwroot/clash.yaml" : s.RemotePath;
+            _remote.Text = string.IsNullOrWhiteSpace(s.RemotePath) || s.RemotePath == "wwwroot/clash.yaml"
+                ? "wwwroot/clash.asp"
+                : s.RemotePath;
             _ftps.Checked = s.UseFtps;
             if (s.Limit > 0)
             {
