@@ -181,22 +181,34 @@ internal static class OpenRungBroker
               .Append("\n    reality-opts:\n      public-key: ").Append(Q(p.PublicKey))
               .Append("\n      short-id: ").Append(Q(p.ShortId)).Append('\n');
         }
-        sb.Append("\nproxy-groups:\n  - name: \"OpenRung\"\n    type: select\n    proxies:\n");
-        foreach (var p in proxies) sb.Append("      - ").Append(Q(p.Name)).Append('\n');
+        var nodeNames = proxies.Select(p => Q(p.Name)).ToList();
+        sb.Append("\nproxy-groups:\n")
+            .Append("  - name: \"选择节点\"\n    type: select\n    proxies:\n")
+            .Append("      - DIRECT\n      - \"所有节点\"\n");
+        foreach (var name in nodeNames) sb.Append("      - ").Append(name).Append('\n');
+
+        sb.Append("  - name: \"所有节点\"\n    type: select\n    proxies:\n");
+        foreach (var name in nodeNames) sb.Append("      - ").Append(name).Append('\n');
+
+        foreach (var groupName in new[] { "局域网", "国内服务" })
+        {
+            sb.Append("  - name: ").Append(Q(groupName)).Append("\n    type: select\n    proxies:\n")
+                .Append("      - DIRECT\n      - \"所有节点\"\n      - \"选择节点\"\n");
+        }
         sb.Append("\nrules:\n")
-            .Append("  # OpenRung-style LAN bypass: private/local addresses go direct.\n")
-            .Append("  - IP-CIDR,0.0.0.0/8,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR6,::1/128,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR6,fc00::/7,DIRECT,no-resolve\n")
-            .Append("  - IP-CIDR6,fe80::/10,DIRECT,no-resolve\n")
-            .Append("  - GEOSITE,CN,DIRECT\n")
-            .Append("  - GEOIP,CN,DIRECT,no-resolve\n")
-            .Append("  - MATCH,OpenRung\n");
+            .Append("  # Private and local IPv4/IPv6 traffic uses the configurable LAN group.\n")
+            .Append("  - IP-CIDR,0.0.0.0/8,局域网,no-resolve\n")
+            .Append("  - IP-CIDR,10.0.0.0/8,局域网,no-resolve\n")
+            .Append("  - IP-CIDR,127.0.0.0/8,局域网,no-resolve\n")
+            .Append("  - IP-CIDR,169.254.0.0/16,局域网,no-resolve\n")
+            .Append("  - IP-CIDR,172.16.0.0/12,局域网,no-resolve\n")
+            .Append("  - IP-CIDR,192.168.0.0/16,局域网,no-resolve\n")
+            .Append("  - IP-CIDR6,::1/128,局域网,no-resolve\n")
+            .Append("  - IP-CIDR6,fc00::/7,局域网,no-resolve\n")
+            .Append("  - IP-CIDR6,fe80::/10,局域网,no-resolve\n")
+            .Append("  - GEOSITE,CN,国内服务\n")
+            .Append("  - GEOIP,CN,国内服务,no-resolve\n")
+            .Append("  - MATCH,选择节点\n");
         return sb.ToString();
     }
 
